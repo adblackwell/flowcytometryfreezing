@@ -206,7 +206,7 @@ at<-par("usr")[1]- (par("usr")[2]-par("usr")[1])*0.35
 mtext("F",3,line=-1,at=at,cex=2)
 dev.off()
 
-
+#Examine viability
 m<-lm(Viable~as.factor(Weeks),data=allset)
 t.test(Viable~Weeks,data=allset[allset$Weeks %in% c(2,4),])
 t.test(Viable~Weeks,data=allset[allset$Weeks %in% c(2,14),])
@@ -238,19 +238,14 @@ CD8=c("CD8Per3","CD8Per7"),
 CD19=c("CD19Per1","CD19Per8"),
 CD28=c("CD28Per3","CD28Per4"),
 CD45RA=c("CD45RAPer3","CD45RAPer4","CD45RAPer6"),
-CD57=c("CD57Per3","CD57Per4"),
-NK.1=c("CD16CD56Per1","NKPer7"),
-NK.2=c("CD16CD56Per1","CD56Per7"),
-NK.3=c("CD16CD56Per1","CD16Per7"),
-NK.4=c("NKPer1","NKPer7"))
+CD57=c("CD57Per3","CD57Per4"))
 
-
+##Table 2 CVs
 CVs<-lapply(repeatsets,function(s) apply(allset[,s],1,function(x) sd(x,na.rm=TRUE)/mean(x,na.rm=TRUE)))
 CVtab<-Reduce(rbind,lapply(CVs,function(x) t(aggregate(x,by=list(Frozen=allset$Frozen),FUN=mean,na.rm=TRUE)[,2])))
 row.names(CVtab)<-names(repeatsets)  
-
 CVtab
-#shows unreasonable results for frozen CD19Per8. CD57 high variance. NK frozen high variance
+
 
 plot(CD19Per1~CD19Per8,data=allset,col=c("black","red")[Frozen+1])
 plot(CD4Per2~CD4Per6,data=allset,col=c("black","red")[Frozen+1])
@@ -286,13 +281,13 @@ getstats<-function(variables,data){
 }
 
 
-
 #Get CVs across all replicates
 CVs<-lapply(repeatsets[-1],function(s) apply(all[,c(s,paste0(s,".F"))],1,function(x) sd(x,na.rm=TRUE)/mean(x,na.rm=TRUE)))
 CVtaball<-Reduce(rbind,lapply(CVs,mean))
 row.names(CVtaball)<-names(repeatsets[-1])  
 CVtaball
 
+#various statistical tables, some of which are reported in the paper.
 ffcor<-getstats(originals,all)
 ffcor
 
@@ -392,8 +387,7 @@ formcor<-function(r){
 }
 
 
-
-#Mean tables
+#Table 3. Mean percent lymphocytes positive for antibody tags in fresh and frozen samples
 cbind(ffcorM[match(LymphPercents, rownames(ffcorM)),c(3,4,7,8)],
       ffcoradjM[match(LymphPercents, rownames(ffcoradjM)),c(3,4,7,8)])
 
@@ -430,12 +424,14 @@ apply(cbind(ffcorM[match(LymphPercents, rownames(ffcorM)),c(3,4)],ffcoradjM[matc
 dev.off()
 
 #Correlation tables
+#Table 4 Pearson’s correlations between percentages measured in fresh and frozen samples part 1
 cbind(LymphPercents,
       formcor(ffcorM[match(LymphPercents, rownames(ffcorM)),c(1,2)]),
       formcor(ffcor.2W[match(LymphPercents, rownames(ffcor.2W)),c(1,2)]),
       formcor(ffcor.4W[match(LymphPercents, rownames(ffcor.4W)),c(1,2)]),
       formcor(ffcor.14W[match(LymphPercents, rownames(ffcor.14W)),c(1,2)]))
 
+#Table 4 Part 2
 cbind(LymphPercents,
       formcor(ffcoradjM[match(LymphPercents, rownames(ffcoradjM)),c(1,2)]),
       formcor(ffcor.2Wadj[match(LymphPercents, rownames(ffcor.2Wadj)),c(1,2)]),
@@ -447,18 +443,20 @@ CD45Percents<-c("CD19CD45Per1","CD3CD45PerM","CD4CD3CD45Per2","CD8CD3CD45Per2","
 CD4Percents<-c("CD4NaivePer","CD4CD45RAPer4","CD4SenPer","TH17Per","TH1Per","TH2Per","TregPer")
 CD8Percents<-c("CD8NaivePer","CD8CD45RAPer3","CD8SenPer")
 CD19Percents<-c("BMemoryPer","BNaivePer","BNonSwitcherPer","BPlasmaPer")
+#Table 5. Mean percent lymphocyte subsets in fresh and frozen samples
 rbind(ffcorM[match(CD45Percents, rownames(ffcorM)),c(3,4,5,7,8)],
       ffcorM[match(CD4Percents, rownames(ffcorM)),c(3,4,5,7,8)],
       ffcorM[match(CD8Percents, rownames(ffcorM)),c(3,4,5,7,8)],
       ffcorM[match(CD19Percents, rownames(ffcorM)),c(3,4,5,7,8)])
-      
+
+#table using counts instead of percents, not in paper      
 rbind(ffcorcnt[match(CD45Percents, rownames(ffcorcnt)),c(1,3,4,6,2)],
       ffcorcnt[match(CD4Percents, rownames(ffcorcnt)),c(1,3,4,6,2)],
       ffcorcnt[match(CD8Percents, rownames(ffcorcnt)),c(1,3,4,6,2)],
       ffcorcnt[match(CD19Percents, rownames(ffcorcnt)),c(1,3,4,6,2)])
 
 
-      
+#Table 6. Pearson’s correlations between percentages obtained for fresh and frozen samples      
 rbind(
 cbind(ffcorM[match(CD45Percents, rownames(ffcorM)),1],
       ffcor.2W[match(CD45Percents, rownames(ffcor.2W)),1],
@@ -480,6 +478,7 @@ cbind(ffcorM[match(CD19Percents, rownames(ffcorM)),1],
       ffcor.4W[match(CD19Percents, rownames(ffcor.4W)),1],
       ffcor.14W[match(CD19Percents, rownames(ffcor.14W)),1]))
 
+#Table of p-values for correlations by week, used for Table 6
 rbind(
   cbind(ffcorM[match(CD45Percents, rownames(ffcorM)),2],
         ffcor.2W[match(CD45Percents, rownames(ffcor.2W)),2],
