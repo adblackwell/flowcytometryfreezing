@@ -2,6 +2,55 @@ library(beeswarm)
 library(wesanderson)
 library(lmerTest)
 library(insight)
+library(ICC)
+
+#sessionInfo()
+# R version 4.0.3 (2020-10-10)
+# Platform: x86_64-w64-mingw32/x64 (64-bit)
+# Running under: Windows 10 x64 (build 19042)
+# 
+# Matrix products: default
+# 
+# locale:
+# [1] LC_COLLATE=English_United States.1252  LC_CTYPE=English_United States.1252   
+# [3] LC_MONETARY=English_United States.1252 LC_NUMERIC=C                          
+# [5] LC_TIME=English_United States.1252    
+# 
+# attached base packages:
+# [1] stats     graphics  grDevices utils     datasets  methods   base     
+# 
+# other attached packages:
+# [1] ICC_2.3.0         brms_2.14.0       Rcpp_1.0.5        rmcorr_0.4.1     
+# [5] insight_0.9.6     lmerTest_3.1-2    lme4_1.1-23       Matrix_1.2-18    
+# [9] wesanderson_0.3.6 beeswarm_0.2.3   
+# 
+# loaded via a namespace (and not attached):
+# [1] nlme_3.1-149         matrixStats_0.57.0   xts_0.12.1           threejs_0.3.3      
+# [5] rstan_2.19.3         numDeriv_2016.8-1.1  backports_1.1.10     tools_4.0.3        
+# [9] R6_2.5.0             DT_0.16              colorspace_1.4-1     withr_2.3.0        
+# [13] prettyunits_1.1.1    tidyselect_1.1.0     gridExtra_2.3        mnormt_2.0.2      
+# [17] processx_3.4.4       Brobdingnag_1.2-6    emmeans_1.5.1        compiler_4.0.3    
+# [21] cli_2.1.0            shinyjs_2.0.0        sandwich_3.0-0       colourpicker_1.1.0
+# [25] scales_1.1.1         dygraphs_1.1.1.6     mvtnorm_1.1-1        psych_2.0.9       
+# [29] ggridges_0.5.2       callr_3.5.1          StanHeaders_2.21.0-6 stringr_1.4.0     
+# [33] digest_0.6.27        minqa_1.2.4          base64enc_0.1-3      pkgconfig_2.0.3   
+# [37] htmltools_0.5.0      fastmap_1.0.1        htmlwidgets_1.5.2    rlang_0.4.8       
+# [41] rstudioapi_0.11      shiny_1.5.0          generics_0.0.2       zoo_1.8-8         
+# [45] crosstalk_1.1.0.1    gtools_3.8.2         dplyr_1.0.2          inline_0.3.16     
+# [49] magrittr_1.5         loo_2.3.1            bayesplot_1.7.2      fansi_0.4.1       
+# [53] munsell_0.5.0        abind_1.4-5          lifecycle_0.2.0      multcomp_1.4-14   
+# [57] stringi_1.5.3        MASS_7.3-53          pkgbuild_1.1.0       plyr_1.8.6        
+# [61] grid_4.0.3           parallel_4.0.3       promises_1.1.1       crayon_1.3.4      
+# [65] miniUI_0.1.1.1       lattice_0.20-41      splines_4.0.3        tmvnsim_1.0-2     
+# [69] ps_1.4.0             pillar_1.4.6         igraph_1.2.6         boot_1.3-25       
+# [73] estimability_1.3     markdown_1.1         shinystan_2.5.0      codetools_0.2-16  
+# [77] reshape2_1.4.4       stats4_4.0.3         rstantools_2.1.1     glue_1.4.2        
+# [81] RcppParallel_5.0.2   vctrs_0.3.4          nloptr_1.2.2.2       httpuv_1.5.4      
+# [85] gtable_0.3.0         purrr_0.3.4          assertthat_0.2.1     ggplot2_3.3.2     
+# [89] mime_0.9             xtable_1.8-4         coda_0.19-4          later_1.1.0.1     
+# [93] survival_3.2-7       rsconnect_0.8.16     tibble_3.0.4         shinythemes_1.1.2 
+# [97] statmod_1.4.35       TH.data_1.0-10       ellipsis_0.3.1       bridgesampling_1.0-0
+
 
 #Col2Alpha
 col.alpha <- function (acol, alpha = 0.5){  # color function for plotting
@@ -13,9 +62,10 @@ col.alpha <- function (acol, alpha = 0.5){  # color function for plotting
   as.character(acol)
 }
 
+#Load the data
 allset<-read.csv("FlowCytometryFreezingData.csv",header=TRUE,stringsAsFactors=FALSE)
 
-#Lymphocyte percents
+#Calculate lymphocyte percents from flow cytometry
 allset$LymphFlowPct1<-allset$LymphCnt1/(allset$LymphCnt1+allset$NeutroCnt1)
 allset$LymphFlowPct2<-allset$LymphCnt2/(allset$LymphCnt2+allset$NeutroCnt2)
 allset$LymphFlowPct3<-allset$LymphCnt3/(allset$LymphCnt3+allset$NeutroCnt3)
@@ -40,49 +90,57 @@ weeksummary<-table(allset$PID,allset$Weeks)
 w2<-as.data.frame.matrix(weeksummary)
 rbind(colSums(w2[w2$`0`==1,]),colSums(w2[w2$`2`==1,]),colSums(w2[w2$`4`==1,]),colSums(w2[w2$`14`==1,]))
 
-#wide format dataset
-allset2<-reshape(allset,direction="wide",idvar="PID",v.names=setdiff(names(allset),c("PID","DrawDate","WBC", "GransPct","GransCnt","LymphQBCCnt","LymphQBCPct","HTO","Hb","MCHC","PLT","Frozen","DrawDate","DrawDate2","FreezeTime","Bedtime","Wake","Drinks","PrickTime","Weeks")), timevar="Weeks",drop=c("Frozen","DrawDate","DrawDate2","FreezeTime","Bedtime","Wake","Drinks","PrickTime"))
-
-#dataset with just the first run
-allset4<-reshape(allset[rev(order(allset$Weeks)),],direction="wide",idvar="PID",v.names=setdiff(names(allset),c("PID","DrawDate","WBC", "GransPct","GransCnt","LymphQBCCnt","LymphQBCPct","HTO","Hb","MCHC","PLT","Frozen","DrawDate","DrawDate2","FreezeTime","Bedtime","Wake","Drinks","PrickTime","Weeks")), timevar="Frozen",drop=c("Weeks","DrawDate","DrawDate2","FreezeTime","Bedtime","Wake","Drinks"))
-
 #Viability Analysis
 ViablebyTime<-reshape(allset[,c("PID","Weeks","Viable","LymphRecovery")],idvar="PID",timevar="Weeks",direction="wide")
 
 ViablebyTime2<-ViablebyTime[!is.na(ViablebyTime$Viable.2) & !is.na(ViablebyTime$Viable.4),]
+ViablebyTime2
 
 LymphByTime2<-ViablebyTime[!is.na(ViablebyTime$LymphRecovery.2) & !is.na(ViablebyTime$LymphRecovery.4),]
+LymphByTime2
 
-#Lymph
-#restructure to long so each sample run is a row
+#For Fresh samples, check if time to preparation affected results. 
+summary(lm(LymphRecovery~waittime+Age+Sex,data=allset[allset$Frozen==0,]))
+summary(lm(LymphFlowPct~waittime+Age+Sex,data=allset[allset$Frozen==0,]))
+summary(lm(GransPct~waittime+Age+Sex,data=allset[allset$Frozen==0,]))
+summary(lm(CD45PerM~waittime+Age+Sex,data=allset[allset$Frozen==0,]))
+summary(lm(NKPerM~waittime+Age+Sex,data=allset[allset$Frozen==0,]))
+summary(lm(CD19PerM~waittime+Age+Sex,data=allset[allset$Frozen==0,]))
+
+#restructure lymphocytes and neutrophils to long format so each sample run is a row. There are 8 sets per sample
 lmnset<-allset[,c("PID","Batch","Weeks","Frozen","LymphRecovery","LymphQBCPct","GransPct","Viable","LymphCnt1","LymphCnt2","LymphCnt3","LymphCnt4","LymphCnt5","LymphCnt6","LymphCnt7","LymphCnt8","NeutroCnt1","NeutroCnt2","NeutroCnt3","NeutroCnt4","NeutroCnt5","NeutroCnt6","NeutroCnt7","NeutroCnt8")]
 
 lmnset2<-reshape(lmnset,varying=list(LymphCnt=c("LymphCnt1","LymphCnt2","LymphCnt3","LymphCnt4","LymphCnt5","LymphCnt6","LymphCnt7","LymphCnt8"),NeutroCnt=c("NeutroCnt1","NeutroCnt2","NeutroCnt3","NeutroCnt4","NeutroCnt5","NeutroCnt6","NeutroCnt7","NeutroCnt8")),times=1:8,direction="long")
 lmnset2$LymphFlowPct<-lmnset2$LymphCnt1/(lmnset2$LymphCnt1+lmnset2$NeutroCnt1)
 lmnset2$NeutroFlowPct<-lmnset2$NeutroCnt1/(lmnset2$LymphCnt1+lmnset2$NeutroCnt1)
 
-
-#check with means
+#Calculate means (same as above, just a different format)
 lmnset2Mean<-aggregate(cbind(LymphQBCPct,GransPct,LymphFlowPct,NeutroFlowPct,LymphRecovery)~PID+Frozen,data=lmnset2,FUN=mean)
 
-lmnset2Mean2<-lmnset2Mean[lmnset2Mean$Frozen==1,c("PID","LymphFlowPct","NeutroFlowPct")]
-names(lmnset2Mean2)[2:3]<- c("LymphFlowPctFrozen","NeutroFlowPctFrozen")
-lmnset2Mean<-merge(lmnset2Mean,lmnset2Mean2,all=TRUE)
+lmnset2MeanTemp<-lmnset2Mean[lmnset2Mean$Frozen==1,c("PID","LymphFlowPct","NeutroFlowPct")]
+names(lmnset2MeanTemp)[2:3]<- c("LymphFlowPctFrozen","NeutroFlowPctFrozen")
+lmnset2Mean<-merge(lmnset2Mean,lmnset2MeanTemp,all=TRUE)
 
 #check correlation in lymphocyte percent in flow and with QBC
 cor.test(~ LymphQBCPct + LymphFlowPct,data=lmnset2Mean[lmnset2Mean$Frozen==0,])
 cor.test(~ LymphQBCPct + LymphFlowPct,data=lmnset2Mean[lmnset2Mean$Frozen==1,])
 cor.test(~ LymphFlowPct + LymphFlowPctFrozen,data=lmnset2Mean[lmnset2Mean$Frozen==0,])
 
+t.test(lmnset2Mean[lmnset2Mean$Frozen==0,]$LymphQBCPct,lmnset2Mean[lmnset2Mean$Frozen==0,]$LymphFlowPct*100,paired=TRUE)
+t.test(lmnset2Mean[lmnset2Mean$Frozen==1,]$LymphQBCPct,lmnset2Mean[lmnset2Mean$Frozen==1,]$LymphFlowPct*100,paired=TRUE)
+
+#Aggregate by week and batch
 lmnset2Mean2<-aggregate(cbind(LymphQBCPct,GransPct,LymphFlowPct,NeutroFlowPct,LymphRecovery)~PID+Frozen+Weeks+Batch,data=lmnset2,FUN=mean,na.rm=TRUE)
 
-
 lmnset2Mean2$change <- (lmnset2Mean2$LymphFlowPct*100)-lmnset2Mean2$LymphQBCPct
+#Check Batch effects
 mod<-lm(change~as.factor(Batch), data=lmnset2Mean2[lmnset2Mean2$Frozen==1,])
 anova(mod)
+
 mod<-lm(LymphRecovery~as.factor(Batch), data=lmnset2Mean2[lmnset2Mean2$Frozen==1,])
 anova(mod)
 
+#Further examine lymphocyte recovery
 allset$change <- (allset$LymphFlowPct*100)-allset$LymphQBCPct
 cor.test(allset$LymphRecovery[allset$Frozen==1],allset$change[allset$Frozen==1])
 
@@ -94,38 +152,29 @@ sd(allset$LymphRecovery[allset$Frozen==1],na.rm=TRUE)
 mod<-lm(LymphRecovery~as.factor(Weeks), data=lmnset2Mean2[lmnset2Mean2$Frozen==1,])
 anova(mod)
 
+#Examine variance contributed by Week, PID, and Batch
 mod<-lmer(LymphRecovery~WeekExact+(1|PID)+(1|Batch)+(1|FreezeBatch),data=allset[allset$Frozen==1,])
-#variance for random effects
-Recoveryvar<-get_variance(mod)$var.intercept/(get_variance(mod)$var.random+get_variance(mod)$var.residual+get_variance(mod)$var.fixed)
-Recoveryvar
-#variance for fixed
-Recoveryvar<-c(Recoveryvar,get_variance(mod)$var.fixed/(get_variance(mod)$var.random+get_variance(mod)$var.residual+get_variance(mod)$var.fixed))
+Recoveryvar<-c(get_variance(mod)$var.intercept,get_variance(mod)$var.fixed)/(get_variance(mod)$var.random+get_variance(mod)$var.residual+get_variance(mod)$var.fixed)
 Recoveryvar
 
+#Same thing for Change
 mod<-lmer(change~WeekExact+(1|PID)+(1|Batch)+(1|FreezeBatch),data=allset[allset$Frozen==1,])
-Changevar<-get_variance(mod)$var.intercept/(get_variance(mod)$var.random+get_variance(mod)$var.residual+get_variance(mod)$var.fixed)
-Changevar
-#variance for fixed
-Changevar<-c(Changevar,get_variance(mod)$var.fixed/(get_variance(mod)$var.random+get_variance(mod)$var.residual+get_variance(mod)$var.fixed))
+Changevar<-c(get_variance(mod)$var.intercept,get_variance(mod)$var.fixed)/(get_variance(mod)$var.random+get_variance(mod)$var.residual+get_variance(mod)$var.fixed)
 Changevar
 
-Fresh<-lmnset2Mean2[lmnset2Mean2$Weeks==2,c("PID","LymphRecovery","LymphFlowPct","LymphQBCPct","change")]
-Frozen<-lmnset2Mean2[lmnset2Mean2$Weeks==4,c("PID","LymphRecovery","LymphFlowPct","change")]
-names(Frozen)<-c("PID","LymphRecovery.4","LymphFlowPct.4","change.4")
-all24<-merge(Fresh,Frozen)
+#Check correlation between Week 2 and Week 4 values
+Week2<-lmnset2Mean2[lmnset2Mean2$Weeks==2,c("PID","LymphRecovery","LymphFlowPct","LymphQBCPct","change")]
+Week4<-lmnset2Mean2[lmnset2Mean2$Weeks==4,c("PID","LymphRecovery","LymphFlowPct","change")]
+names(Week4)<-c("PID","LymphRecovery.4","LymphFlowPct.4","change.4")
+all24<-merge(Week2,Week4)
 
 cor.test(all24$LymphRecovery,all24$LymphRecovery.4)
 cor.test(all24$LymphFlowPct,all24$LymphFlowPct.4)
 cor.test(all24$change,all24$change.4)
 
-plot(I(LymphMonFlowPct*100)~I(LymphQBCPct+runif(nrow(lmnset2Mean),-0.25,0.25)),data=lmnset2Mean,col=c("red","black")[lmnset2Mean$Frozen+1])
-abline(0,1)
-
 t.test(lmnset2Mean[lmnset2Mean$Frozen==0,]$LymphFlowPct,lmnset2Mean[lmnset2Mean$Frozen==0,]$LymphFlowPctFrozen,paired=TRUE)
 
 t.test(lmnset2Mean[lmnset2Mean$Frozen==0,]$NeutroFlowPct,lmnset2Mean[lmnset2Mean$Frozen==0,]$NeutroFlowPctFrozen,paired=TRUE)
-
-
 
 
 #Figure 1 Lymphocyte plot
@@ -246,6 +295,18 @@ CVtab<-Reduce(rbind,lapply(CVs,function(x) t(aggregate(x,by=list(Frozen=allset$F
 row.names(CVtab)<-names(repeatsets)  
 CVtab
 
+CVtabsd<-Reduce(rbind,lapply(CVs,function(x) t(aggregate(x,by=list(Frozen=allset$Frozen),FUN=sd,na.rm=TRUE)[,2])))
+row.names(CVtabsd)<-names(repeatsets)  
+CVtabsd
+
+ICCs<-Reduce(rbind,lapply(repeatsets,function(s){
+  rs<-reshape(allset[,c("PID","Frozen","Weeks",s)],varying=list(var=s),idvar=c("PID","Frozen","Weeks"),direction="long",v.names="var")
+  IC1<-ICCest(PID,var,rs[rs$Frozen==0,])
+  IC2<-ICCest(PID,var,rs[rs$Frozen==1,])
+  return(c(IC1$ICC,IC2$ICC))
+} ))
+row.names(ICCs)<-names(repeatsets)  
+ICCs
 
 plot(CD19Per1~CD19Per8,data=allset,col=c("black","red")[Frozen+1])
 plot(CD4Per2~CD4Per6,data=allset,col=c("black","red")[Frozen+1])
@@ -262,13 +323,14 @@ allset$CD8.CPPerM<-rowMeans(allset[,c("CD8Per3","CD8Per7")],na.rm=TRUE)
 
 originals<-names(allset)[grep("Per[1-8M]?$",names(allset))]
 #In this case just use the fresh value twice if someone was run twice.
-Fresh<-allset[allset$Frozen==0,c("PID","LymphRecovery","Weeks",originals)]
-Frozen<-allset[allset$Frozen==1,c("PID","LymphRecovery","Weeks",originals)]
+Fresh<-allset[allset$Frozen==0,c("PID","LymphRecovery","Weeks","Batch","FreezeBatch","WeekExact",originals)]
+Frozen<-allset[allset$Frozen==1,c("PID","LymphRecovery","Weeks","Batch","FreezeBatch","WeekExact",originals)]
 names(Frozen)[-1]<-paste0(names(Frozen)[-1],".F")
 all<-merge(Fresh,Frozen)
 #check sample sizes
 data.frame(names(Fresh),colSums(!is.na(Fresh)),colSums(!is.na(Frozen)))
 
+#Function to use to summarize stats.
 getstats<-function(variables,data){
   t(sapply(variables,function(v){
     if(sum(!is.na(data[,v]))>2){
@@ -281,13 +343,8 @@ getstats<-function(variables,data){
 }
 
 
-#Get CVs across all replicates
-CVs<-lapply(repeatsets[-1],function(s) apply(all[,c(s,paste0(s,".F"))],1,function(x) sd(x,na.rm=TRUE)/mean(x,na.rm=TRUE)))
-CVtaball<-Reduce(rbind,lapply(CVs,mean))
-row.names(CVtaball)<-names(repeatsets[-1])  
-CVtaball
 
-#various statistical tables, some of which are reported in the paper.
+#various statistical tables, some of which are reported in the paper. See code further below where these get formatted into the Tables for the paper.
 ffcor<-getstats(originals,all)
 ffcor
 
@@ -364,7 +421,7 @@ CD4Percents<-c("CD4NaivePer","CD4CD45RAPer4","CD4SenPer","TH17Per","TH1Per","TH2
 CD8Percents<-c("CD8NaivePer","CD8CD45RAPer3","CD8SenPer")
 CD19Percents<-c("BMemoryPer","BNaivePer","BNonSwitcherPer","BPlasmaPer")
 
-#Note, not adjusting variable names to reflect using counts
+#Converting to counts, but note, not adjusting variable names to reflect using counts
 allsub<-cbind(allset[,c("PID","Weeks","LymphQBCCnt","Frozen",originals)])
 allsub[,LymphPercents] <- allsub[,LymphPercents]*allsub$LymphQBCCnt/100*1000
 allsub[,CD45Percents] <- allsub[,CD45Percents]*allsub$CD45PerM/100
@@ -429,7 +486,10 @@ cbind(LymphPercents,
       formcor(ffcorM[match(LymphPercents, rownames(ffcorM)),c(1,2)]),
       formcor(ffcor.2W[match(LymphPercents, rownames(ffcor.2W)),c(1,2)]),
       formcor(ffcor.4W[match(LymphPercents, rownames(ffcor.4W)),c(1,2)]),
-      formcor(ffcor.14W[match(LymphPercents, rownames(ffcor.14W)),c(1,2)]))
+      formcor(ffcor.14W[match(LymphPercents, rownames(ffcor.14W)),c(1,2)])
+      )
+# #Mean correlations by week
+c(mean(ffcorM[match(LymphPercents, rownames(ffcorM)),1]),mean(ffcor.2W[match(LymphPercents, rownames(ffcor.2W)),1]),mean(ffcor.4W[match(LymphPercents, rownames(ffcor.4W)),1]),mean(ffcor.14W[match(LymphPercents, rownames(ffcor.14W)),1]))
 
 #Table 4 Part 2
 cbind(LymphPercents,
@@ -438,6 +498,7 @@ cbind(LymphPercents,
       formcor(ffcor.4Wadj[match(LymphPercents, rownames(ffcor.4Wadj)),c(1,2)]),
       formcor(ffcor.14Wadj[match(LymphPercents, rownames(ffcor.14Wadj)),c(1,2)]))
 
+c(mean(ffcoradjM[match(LymphPercents, rownames(ffcoradjM)),1],na.rm=TRUE),mean(ffcor.2Wadj[match(LymphPercents, rownames(ffcor.2Wadj)),1],na.rm=TRUE),mean(ffcor.4Wadj[match(LymphPercents, rownames(ffcor.4Wadj)),1],na.rm=TRUE),mean(ffcor.14Wadj[match(LymphPercents, rownames(ffcor.14Wadj)),1],na.rm=TRUE))
 
 CD45Percents<-c("CD19CD45Per1","CD3CD45PerM","CD4CD3CD45Per2","CD8CD3CD45Per2","NKPer1")
 CD4Percents<-c("CD4NaivePer","CD4CD45RAPer4","CD4SenPer","TH17Per","TH1Per","TH2Per","TregPer")
@@ -501,13 +562,24 @@ rbind(
         ffcor.14W[match(CD19Percents, rownames(ffcor.14W)),2]))
 
 
+#batch effects for table 6
+BatchTests<-c("CD19CD45Per1","CD3CD45PerM","CD4CD3CD45Per2","CD8CD3CD45Per2","NKPer1","CD4NaivePer","CD4CD45RAPer4","CD4SenPer","TH17Per","TH1Per","TH2Per","TregPer","CD8NaivePer","CD8CD45RAPer3","CD8SenPer","BMemoryPer","BNaivePer","BNonSwitcherPer","BPlasmaPer")
+library(MCMCglmm)
+batch<-t(sapply(BatchTests, function(v){
+  print(v)
+  mod<-lmer(formula(paste0("I(",v,".F-",v,")~(1|Batch.F)+(1|FreezeBatch.F)")),data=all)
+  Changevar<-c(get_variance(mod)$var.intercept)/(sum(get_variance(mod)$var.intercept)+get_variance(mod)$var.residual)
+  Changevar
+}))
+
+
 corem<-c("CD19CD45Per1","CD3CD45PerM","NKPer1","CD4CD3CD45Per2","CD4NaivePer","CD4SenPer","CD8CD3CD45Per2","CD8NaivePer","CD8SenPer")
 
 
 #Figure 3 Scatters with Percents
 rndRec<-1 + (all$LymphRecovery.F>5) + (all$LymphRecovery.F>7) + (all$LymphRecovery.F>10) + (all$LymphRecovery.F>15)
 lymphcols<-rev(wes_palette("Zissou1",5))
-tiff("Scatters.tif",width=2000,height=2000,units="px",compression="lzw",pointsize=14,res=300)
+tiff("Fig 3 Scatters.tif",width=2000,height=2000,units="px",compression="lzw",pointsize=14,res=300)
 layout(matrix(c(10,1,2,3, 10,4,5,6, 10,7,8,9, 12,11,11,11),byrow=T,ncol=4),widths=c(0.05,0.3,0.3,0.3),heights=c(0.3,0.3,0.3,0.05))
 par(mar=c(2,2,1,1))
 titles<-c("B cells","T cells","Natural Killer","CD4 T","Naive CD4","Senescent CD4 T","CD8 T","Naive CD8 T","Senescent CD8 T")
@@ -518,6 +590,7 @@ for(i in 1:length(corem)){
   text(rng[1]+1*(rng[2]-rng[1]),rng[3]+0.05*(rng[4]-rng[3]),titles[i],pos=2,col="red")
   text(rng[1]+0.05*(rng[2]-rng[1]),rng[3]+0.90*(rng[4]-rng[3]),paste0("r=",format(round(ffcorM[corem[i],1],2),nsmall=2)),pos=4,col="red")
   abline(0,1)
+  abline(lm(all[,paste0(corem[i],".F")]~all[,corem[i]]),lty=2)
 }
 par(mar=c(0,0,0,0))
 plot(0,0,type="n",xlim=c(0,1),ylim=c(0,1),bty="n",xaxt="n",yaxt="n")
@@ -527,7 +600,7 @@ text(0.5,0.5,"Fresh (%)",srt=0,cex=1.7)
 dev.off()
 
 #Figure 4 Scatters with Counts
-tiff("ScattersCNT.tif",width=2000,height=2000,units="px",compression="lzw",pointsize=14,res=300)
+tiff("Figure 5 ScattersCNT.tif",width=2000,height=2000,units="px",compression="lzw",pointsize=14,res=300)
 layout(matrix(c(10,1,2,3, 10,4,5,6, 10,7,8,9, 12,11,11,11),byrow=T,ncol=4),widths=c(0.05,0.3,0.3,0.3),heights=c(0.3,0.3,0.3,0.05))
 par(mar=c(2,2,1,1))
 titles<-c("B cells","T cells","Natural Killer","CD4 T","Naive CD4","Senescent CD4 T","CD8 T","Naive CD8 T","Senescent CD8 T")
@@ -538,6 +611,7 @@ for(i in 1:length(corem)){
   text(rng[1]+1*(rng[2]-rng[1]),rng[3]+0.05*(rng[4]-rng[3]),titles[i],pos=2,col="red")
   text(rng[1]+0.05*(rng[2]-rng[1]),rng[3]+0.90*(rng[4]-rng[3]),paste0("r=",format(round(ffcorcnt[corem[i],1],2),nsmall=2)),pos=4,col="red")
   abline(0,1)
+  abline(lm(allcnt[,paste0(corem[i],".F")]~allcnt[,corem[i]]),lty=2)
 }
 par(mar=c(0,0,0,0))
 plot(0,0,type="n",xlim=c(0,1),ylim=c(0,1),bty="n",xaxt="n",yaxt="n")
@@ -546,12 +620,12 @@ plot(0,0,type="n",xlim=c(0,1),ylim=c(0,1),bty="n",xaxt="n",yaxt="n")
 text(0.5,0.5,expression(paste("Fresh (cells/",mu,"l)")),srt=0,cex=1.7)
 dev.off()
 
-#Figure 5 mean values by week
+#Figure 7 mean values by week
 out<-rbind(
   cbind(ffcor.2W[match(corem, rownames(ffcor.2W)),c(5,7,8)],
         ffcor.4W[match(corem, rownames(ffcor.4W)),c(5,7,8)],
         ffcor.14W[match(corem, rownames(ffcor.14W)),c(5,7,8)]))
-tiff("WeekChange.tif",width=2000,height=2000,units="px",compression="lzw",pointsize=14,res=300)
+tiff("Figure 6 WeekChange.tif",width=2000,height=2000,units="px",compression="lzw",pointsize=14,res=300)
 titles<-c("B cells","T cells","Natural Killer","CD4 T","Naive CD4","Senescent CD4 T","CD8 T","Naive CD8 T","Senescent CD8 T")
 layout(matrix(c(10,1,2,3, 10,4,5,6, 10,7,8,9, 12,11,11,11),byrow=T,ncol=4),widths=c(0.05,0.3,0.3,0.3),heights=c(0.3,0.3,0.3,0.05))
 par(mar=c(2,2,1,1))
@@ -573,3 +647,52 @@ plot(0,0,type="n",xlim=c(0,1),ylim=c(0,1),bty="n",xaxt="n",yaxt="n")
 text(0.5,0.5,"Weeks Frozen",srt=0,cex=1.7)
 dev.off()
 
+#Bland-Altman
+tiff("Figure 4 Bland-Altman.tif",width=2000,height=2000,units="px",compression="lzw",pointsize=14,res=300)
+layout(matrix(c(10,1,2,3, 10,4,5,6, 10,7,8,9, 12,11,11,11),byrow=T,ncol=4),widths=c(0.05,0.3,0.3,0.3),heights=c(0.3,0.3,0.3,0.05))
+par(mar=c(2,2,1,1))
+titles<-c("B cells","T cells","Natural Killer","CD4 T","Naive CD4","Senescent CD4 T","CD8 T","Naive CD8 T","Senescent CD8 T")
+for(i in 1:length(corem)){
+  avg<- (all[,paste0(corem[i],".F")] + all[,corem[i]])/2
+  diff<- all[,paste0(corem[i],".F")] - all[,corem[i]]
+  minmax<-max(abs(diff),na.rm=TRUE)*1.2
+  plot(avg,diff,xlab=NA,ylab=NA,pch=19,col=lymphcols[rndRec],ylim=c(-45,45))
+
+  abline(h=mean(diff,na.rm=TRUE),lty=2)
+  sddiff<-sd(diff,na.rm=TRUE)
+  abline(h=mean(diff,na.rm=TRUE)+2*sddiff,lty=3)
+  abline(h=mean(diff,na.rm=TRUE)-2*sddiff,lty=3)
+  rng <- par("usr")
+  text(rng[1]+1*(rng[2]-rng[1]),rng[3]+0.05*(rng[4]-rng[3]),titles[i],pos=2,col="red")
+}
+par(mar=c(0,0,0,0))
+plot(0,0,type="n",xlim=c(0,1),ylim=c(0,1),bty="n",xaxt="n",yaxt="n")
+text(0.5,0.5,"Frozen (%) - Fresh (%)",srt=90,cex=1.7)
+plot(0,0,type="n",xlim=c(0,1),ylim=c(0,1),bty="n",xaxt="n",yaxt="n")
+text(0.5,0.5,"(Frozen (%) + Fresh (%))/2",srt=0,cex=1.7)
+dev.off()
+
+#Count. Not included in paper because difficult to interpret, because relative count of different groups is so different.
+tiff("Figure X Bland-Altman Count.tif",width=2000,height=2000,units="px",compression="lzw",pointsize=14,res=300)
+layout(matrix(c(10,1,2,3, 10,4,5,6, 10,7,8,9, 12,11,11,11),byrow=T,ncol=4),widths=c(0.05,0.3,0.3,0.3),heights=c(0.3,0.3,0.3,0.05))
+par(mar=c(2,2,1,1))
+titles<-c("B cells","T cells","Natural Killer","CD4 T","Naive CD4","Senescent CD4 T","CD8 T","Naive CD8 T","Senescent CD8 T")
+for(i in 1:length(corem)){
+  avg<- (allcnt[,paste0(corem[i],".F")] + allcnt[,corem[i]])/2/1000
+  diff<- (allcnt[,paste0(corem[i],".F")] - allcnt[,corem[i]])/1000
+  minmax<-max(abs(diff),na.rm=TRUE)*1.2
+  plot(avg,diff,xlab=NA,ylab=NA,pch=19,col=lymphcols[rndRec],ylim=c(-1.5,1.5))
+  
+  abline(h=mean(diff,na.rm=TRUE),lty=2)
+  sddiff<-sd(diff,na.rm=TRUE)
+  abline(h=mean(diff,na.rm=TRUE)+2*sddiff,lty=3)
+  abline(h=mean(diff,na.rm=TRUE)-2*sddiff,lty=3)
+  rng <- par("usr")
+  text(rng[1]+1*(rng[2]-rng[1]),rng[3]+0.05*(rng[4]-rng[3]),titles[i],pos=2,col="red")
+}
+par(mar=c(0,0,0,0))
+plot(0,0,type="n",xlim=c(0,1),ylim=c(0,1),bty="n",xaxt="n",yaxt="n")
+text(0.5,0.5,expression(paste("Frozen - Fresh (x1000 cells/",mu,"l)")),srt=90,cex=1.7)
+plot(0,0,type="n",xlim=c(0,1),ylim=c(0,1),bty="n",xaxt="n",yaxt="n")
+text(0.5,0.5,expression(paste("(Frozen + Fresh (x1000 cells/",mu,"l))/2")),srt=0,cex=1.7)
+dev.off()
